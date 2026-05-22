@@ -271,10 +271,10 @@ HTML
         const SUPABASE_URL = "https://limsjzfxiyvfjlnvytgi.supabase.co"; 
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpbXNqemZ4aXl2ZmpsbnZ5dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NjAxNTYsImV4cCI6MjA5NTAzNjE1Nn0.AfQITh1nH-1cAo2O39uSPDLEKiK7XxUQLuCxP_GECnE";
 
-        // 2. Membuat koneksi (Gunakan window.supabaseClient agar tidak bentrok)
-        window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // 2. Membuat koneksi ke Supabase (Kita beri nama _supabase)
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // 3. Data Stok Barang (Pastikan tanda kurung kurawal tutupnya rapi)
+        // 3. Data Stok Barang
         const stokBarang = {
             "Pendapa": 1,
             "Tenda UMKM": 5,
