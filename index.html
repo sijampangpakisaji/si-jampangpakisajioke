@@ -267,14 +267,14 @@ HTML
     </div>
 
 <script>
-        // 1. Konfigurasi Kunci Akses Supabase Anda (Sudah Diperbaiki)
+        // 1. Konfigurasi Kunci Akses Supabase Anda
         const SUPABASE_URL = "https://limsjzfxiyvfjlnvytgi.supabase.co"; 
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpbXNqemZ4aXl2ZmpsbnZ5dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NjAxNTYsImV4cCI6MjA5NTAzNjE1Nn0.AfQITh1nH-1cAo2O39uSPDLEKiK7XxUQLuCxP_GECnE";
 
-        // 2. Membuat koneksi ke Supabase (Cukup panggil variabelnya saja)
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // 2. Membuat koneksi (Gunakan window.supabaseClient agar tidak bentrok)
+        window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // 3. Data Stok Barang
+        // 3. Data Stok Barang (Pastikan tanda kurung kurawal tutupnya rapi)
         const stokBarang = {
             "Pendapa": 1,
             "Tenda UMKM": 5,
