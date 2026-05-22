@@ -294,7 +294,7 @@ HTML
 
         // Mengambil seluruh data riwayat arsip asli dari Supabase Cloud
         async function ambilDataDariSupabase() {
-            let { data, error } = await supabase
+            let { data, error } = await _supabase
                 .from('peminjaman')
                 .select('*')
                 .order('id', { ascending: false });
