@@ -1,0 +1,486 @@
+HTML
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formulir Peminjaman - Kantor Kecamatan Pakis Aji</title>
+    <!-- Memanggil SDK Supabase agar HTML bisa tersambung ke Database Cloud -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --success-color: #2ecc71;
+            --dark-color: #2c3e50;
+            --light-color: #ecf0f1;
+            --danger-color: #e74c3c;
+            --warning-color: #f39c12;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f5f7fa;
+            color: var(--dark-color);
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 20px 0;
+            margin-bottom: 30px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        header h1 {
+            color: var(--primary-color);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .container {
+                grid-template-columns: 1fr 2fr;
+            }
+            .full-width {
+                grid-column: span 2;
+            }
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            margin-bottom: 15px;
+            border-bottom: 2px solid var(--light-color);
+            padding-bottom: 5px;
+            font-size: 1.2rem;
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1rem;
+            margin-bottom: 10px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary-color);
+            border: none;
+            color: white;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        /* Table Styles */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        table th, table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--light-color);
+            vertical-align: top;
+        }
+
+        table th {
+            background-color: var(--light-color);
+            color: var(--dark-color);
+        }
+
+        .detail-peminjam {
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            margin-top: 4px;
+            line-height: 1.3;
+        }
+
+        /* Badge & Button Styles */
+        .badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .badge-warning { background-color: #ffeaa7; color: #d63031; } 
+        .badge-info { background-color: #dff9fb; color: #0984e3; }    
+        .badge-success { background-color: #d4edda; color: #155724; } 
+        .badge-danger { background-color: #fce4e4; color: #c0392b; }  
+
+        .btn-action {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            width: auto;
+            display: inline-block;
+            margin-right: 4px;
+            margin-bottom: 4px;
+        }
+        .btn-setujui { background-color: var(--success-color); }
+        .btn-setujui:hover { background-color: #27ae60; }
+        .btn-tolak { background-color: var(--danger-color); }
+        .btn-tolak:hover { background-color: #c0392b; }
+        .btn-kembali { background-color: var(--primary-color); }
+        .btn-kembali:hover { background-color: #2980b9; }
+
+        /* Info Tanggal Terpesan */
+        .info-jadwal {
+            background-color: #edf2f7;
+            padding: 10px;
+            border-left: 4px solid var(--primary-color);
+            margin-bottom: 15px;
+            border-radius: 0 4px 4px 0;
+            font-size: 0.9rem;
+        }
+        .info-jadwal ul {
+            margin-left: 20px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Formulir Peminjaman</h1>
+        <p>Sistem Peminjaman Barang / Ruang di Kantor Kecamatan Pakis Aji</p>
+    </header>
+
+    <div class="container">
+        
+        <!-- Kolom Kiri: Form Peminjaman & Informasi -->
+        <div>
+            <div class="card">
+                <h2>Form Peminjaman</h2>
+                <form id="formPinjam">
+                    <div class="form-group">
+                        <label for="nama">Nama Peminjam</label>
+                        <input type="text" id="nama" required placeholder="Masukkan nama kamu">
+                        
+                        <label for="alamat">Alamat Peminjam</label>
+                        <input type="text" id="alamat" required placeholder="Masukkan alamat lengkap">
+
+                        <label for="noWa">Nomor WhatsApp</label>
+                        <input type="tel" id="noWa" required placeholder="Masukkan nomor WA aktif">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="barang">Pilih Barang</label>
+                        <select id="barang" required>
+                            <option value="">-- Pilih Barang --</option>
+                            <option value="Pendapa">Pendapa (Tersedia: 1)</option>
+                            <option value="Tenda UMKM">Tenda UMKM (Tersedia: 5)</option>
+                            <option value="Kostum Jawa">Kostum Jawa (Tersedia: 10 Set)</option>
+                            <option value="Kursi">Kursi (Tersedia: 50)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="jumlah">Jumlah yang Dipinjam</label>
+                        <input type="number" id="jumlah" min="1" required placeholder="Masukkan jumlah barang">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tglPinjam">Tanggal Pinjam</label>
+                        <input type="date" id="tglPinjam" required>
+                        
+                        <label for="tglKembali">Tanggal Kembali</label>
+                        <input type="date" id="tglKembali" required>
+                    </div>
+                    <button type="submit" id="btnSubmit">Ajukan Peminjaman</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>Jadwal Terpesan Barang (Disetujui)</h2>
+                <div id="panelJadwal" class="info-jadwal">
+                    Silahkan pilih barang untuk melihat tanggal yang sudah dibooking resmi.
+                </div>
+            </div>
+        </div>
+
+        <!-- Kolom Kanan: Dashboard Admin & Log Peminjaman -->
+        <div class="card">
+            <h2>Daftar Pengajuan & Status Peminjaman</h2>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data Peminjam</th>
+                            <th>Barang</th>
+                            <th>Jumlah</th>
+                            <th>Periode Pinjam</th>
+                            <th>Status</th>
+                            <th>Aksi Petugas (Admin)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelPeminjaman">
+                        <tr><td colspan="6" style="text-align:center;">Memuat databasearsip cloud...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Konfigurasi Kunci Akses Supabase Anda
+        const SUPABASE_URL = "GANTI_DENGAN_URL_SUPABASE_ANDA"; 
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpbXNqemZ4aXl2ZmpsbnZ5dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NjAxNTYsImV4cCI6MjA5NTAzNjE1Nn0.AfQITh1nH-1cAo2O39uSPDLEKiK7XxUQLuCxP_GECnE";
+
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const stokBarang = {
+            "Pendapa": 1,
+            "Tenda UMKM": 5,
+            "Kostum Jawa": 10,
+            "Kursi": 50
+        };
+
+        let dataPeminjaman = [];
+
+        const form = document.getElementById('formPinjam');
+        const tabel = document.getElementById('tabelPeminjaman');
+        const selectBarang = document.getElementById('barang');
+        const panelJadwal = document.getElementById('panelJadwal');
+
+        document.getElementById('tglPinjam').valueAsDate = new Date();
+        document.getElementById('tglKembali').valueAsDate = new Date();
+
+        // Mengambil seluruh data riwayat arsip asli dari Supabase Cloud
+        async function ambilDataDariSupabase() {
+            let { data, error } = await supabase
+                .from('peminjaman')
+                .select('*')
+                .order('id', { ascending: false });
+
+            if (error) {
+                console.error("Gagal mengambil data database:", error.message);
+                return;
+            }
+            dataPeminjaman = data;
+            tampilkanData();
+            updateInfoJadwal();
+        }
+
+        function dapatkanRentangTanggal(startStr, endStr) {
+            let daftarTanggal = [];
+            let tanggalArus = new Date(startStr);
+            let tanggalAkhir = new Date(endStr);
+            
+            while (tanggalArus <= tanggalAkhir) {
+                daftarTanggal.push(tanggalArus.toISOString().split('T')[0]);
+                tanggalArus.setDate(tanggalArus.getDate() + 1);
+            }
+            return daftarTanggal;
+        }
+
+        function hitungStokTerpakai(namaBarang, tanggalTarget) {
+            let terpakai = 0;
+            dataPeminjaman.forEach(item => {
+                if (item.barang === namaBarang && item.status === "Disetujui") {
+                    let rentang = dapatkanRentangTanggal(item.tglPinjam, item.tglKembali);
+                    if (rentang.includes(tanggalTarget)) {
+                        terpakai += parseInt(item.jumlah);
+                    }
+                }
+            });
+            return terpakai;
+        }
+
+        function updateInfoJadwal() {
+            const barangDipilih = selectBarang.value;
+            if (!barangDipilih) {
+                panelJadwal.innerHTML = "Silahkan pilih barang untuk melihat tanggal yang sudah dibooking resmi.";
+                return;
+            }
+
+            let logJadwal = [];
+            dataPeminjaman.forEach(item => {
+                if (item.barang === barangDipilih && item.status === "Disetujui") {
+                    logJadwal.push(`<li><b>${item.tglPinjam}</b> s/d <b>${item.tglKembali}</b> (${item.jumlah} unit oleh ${item.nama})</li>`);
+                }
+            });
+
+            if (logJadwal.length === 0) {
+                panelJadwal.innerHTML = `Barang <b>${barangDipilih}</b> sepenuhnya tersedia (Belum ada booking resmi).`;
+            } else {
+                panelJadwal.innerHTML = `Tanggal booking resmi <b>${barangDipilih}</b> (Stok Maks: ${stokBarang[barangDipilih]}): <ul>${logJadwal.join('')}</ul>`;
+            }
+        }
+
+        selectBarang.addEventListener('change', updateInfoJadwal);
+
+        function tampilkanData() {
+            tabel.innerHTML = '';
+            
+            if (dataPeminjaman.length === 0) {
+                tabel.innerHTML = `<tr><td colspan="6" style="text-align:center;">Tidak ada riwayat arsip di cloud.</td></tr>`;
+                return;
+            }
+
+            dataPeminjaman.forEach((item) => {
+                let badgeClass = "badge-warning";
+                if (item.status === "Disetujui") badgeClass = "badge-info";
+                if (item.status === "Dikembalikan") badgeClass = "badge-success";
+                if (item.status === "Ditolak") badgeClass = "badge-danger";
+
+                let tombolAksi = "-";
+                if (item.status === "Diajukan") {
+                    tombolAksi = `
+                        <button class="btn-action btn-setujui" onclick="responsAdmin(${item.id}, 'Disetujui')">Setujui</button>
+                        <button class="btn-action btn-tolak" onclick="responsAdmin(${item.id}, 'Ditolak')">Tolak</button>
+                    `;
+                } else if (item.status === "Disetujui") {
+                    tombolAksi = `<button class="btn-action btn-kembali" onclick="responsAdmin(${item.id}, 'Dikembalikan')">Kembalikan</button>`;
+                }
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>
+                        <b>${item.nama}</b>
+                        <div class="detail-peminjam">
+                            📍 ${item.alamat}<br>
+                            📱 ${item.noWa}
+                        </div>
+                    </td>
+                    <td>${item.barang}</td>
+                    <td>${item.jumlah}</td>
+                    <td><small>${item.tglPinjam} s/d ${item.tglKembali}</small></td>
+                    <td><span class="badge ${badgeClass}">${item.status}</span></td>
+                    <td>${tombolAksi}</td>
+                `;
+                tabel.appendChild(row);
+            });
+        }
+
+        // Menyimpan data pengajuan nyata baru langsung ke Cloud Database
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            document.getElementById('btnSubmit').innerText = "Mengirim...";
+
+            const nama = document.getElementById('nama').value;
+            const alamat = document.getElementById('alamat').value;
+            const noWa = document.getElementById('noWa').value;
+            const barang = selectBarang.value;
+            const jumlahMohon = parseInt(document.getElementById('jumlah').value);
+            const tglPinjam = document.getElementById('tglPinjam').value;
+            const tglKembali = document.getElementById('tglKembali').value;
+
+            if (new Date(tglPinjam) > new Date(tglKembali)) {
+                alert("Kesalahan: Tanggal kembali tidak boleh mendahului tanggal pinjam!");
+                document.getElementById('btnSubmit').innerText = "Ajukan Peminjaman";
+                return;
+            }
+
+            // Memasukkan record ke Supabase
+            const { error } = await supabase
+                .from('peminjaman')
+                .insert([{ 
+                    nama: nama, 
+                    alamat: alamat, 
+                    noWa: noWa, 
+                    barang: barang, 
+                    jumlah: jumlahMohon, 
+                    tglPinjam: tglPinjam, 
+                    tglKembali: tglKembali,
+                    status: "Diajukan"
+                }]);
+
+            if (error) {
+                alert("Gagal mengunggah pengajuan: " + error.message);
+            } else {
+                alert(`Permohonan peminjaman ${barang} berhasil disimpan di Arsip Cloud!`);
+                form.reset();
+                document.getElementById('tglPinjam').valueAsDate = new Date();
+                document.getElementById('tglKembali').valueAsDate = new Date();
+                await ambilDataDariSupabase(); // Sinkronisasi ulang tabel
+            }
+            document.getElementById('btnSubmit').innerText = "Ajukan Peminjaman";
+        });
+
+        // Petugas memperbarui status arsip di Cloud secara permanen
+        async function responsAdmin(id, keputusan) {
+            const index = dataPeminjaman.findIndex(item => item.id === id);
+            if (index === -1) return;
+
+            const target = dataPeminjaman[index];
+
+            if (keputusan === "Disetujui") {
+                let rentangTanggalMohon = dapatkanRentangTanggal(target.tglPinjam, target.tglKembali);
+                let stokMaksimal = stokBarang[target.barang];
+
+                for (let i = 0; i < rentangTanggalMohon.length; i++) {
+                    let tglCek = rentangTanggalMohon[i];
+                    let terpakai = hitungStokTerpakai(target.barang, tglCek);
+                    let sisaStok = stokMaksimal - terpakai;
+
+                    if (target.jumlah > sisaStok) {
+                        alert(`Gagal Menyetujui! Stok tidak cukup pada tanggal ${tglCek}. Sisa stok: ${sisaStok} unit.`);
+                        return;
+                    }
+                }
+            }
+
+            // Kirim perintah UPDATE ke database cloud Supabase
+            const { error } = await supabase
+                .from('peminjaman')
+                .update({ status: keputusan })
+                .eq('id', id);
+
+            if (error) {
+                alert("Gagal merubah status arsip: " + error.message);
+            } else {
+                alert(`Status arsip digital diubah: ${keputusan}`);
+                await ambilDataDariSupabase(); // Ambil data segar dari server
+            }
+        }
+
+        // Jalankan pengambilan data cloud saat halaman pertama dibuka
+        ambilDataDariSupabase();
+    </script>
+</body>
+</html>
