@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Peminjaman Pendapa dan Barang di Kantor Kecamatan Pakis Aji</title>
-    <!-- Memanggil SDK Supabase agar HTML bisa tersambung ke Database Cloud -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -158,6 +157,11 @@
             display: inline-block;
             margin-right: 4px;
             margin-bottom: 4px;
+            color: white;
+            font-weight: bold;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
         }
         .btn-setujui { background-color: var(--success-color); }
         .btn-setujui:hover { background-color: #27ae60; }
@@ -187,13 +191,14 @@
         <h1>SI-JAMPANG PAKIS AJI</h1>
         <p>Sistem Peminjaman Pendapa dan Barang di Kantor Kecamatan Pakis Aji</p>
     </header>
-<div style="margin: 20px; text-align: right;">
-    <button id="btnLogin" onclick="tampilkanFormLogin()">Login Admin</button>
-    <button id="btnLogout" onclick="logoutAdmin()" style="display: none;">Logout</button>
-</div>
+
+    <div style="margin: 20px; text-align: right;">
+        <button id="btnLogin" onclick="tampilkanFormLogin()" style="width: auto; display: inline-block;">Login Admin</button>
+        <button id="btnLogout" onclick="logoutAdmin()" style="width: auto; display: none; background-color: var(--danger-color);">Logout</button>
+    </div>
+
     <div class="container">
         
-        <!-- Kolom Kiri: Form Peminjaman & Informasi -->
         <div>
             <div class="card">
                 <h2>Form Peminjaman</h2>
@@ -232,10 +237,12 @@
                         <label for="tglKembali">Tanggal Kembali</label>
                         <input type="date" id="tglKembali" required>
                     </div>
-<div class="form-group" style="margin-bottom: 15px;">
-    <label for="keperluan">Untuk Keperluan:</label>
-    <input type="text" id="keperluan" name="keperluan" required style="width: 100%; padding: 8px;">
-</div>
+
+                    <div class="form-group">
+                        <label for="keperluan">Untuk Keperluan:</label>
+                        <input type="text" id="keperluan" required placeholder="Contoh: Rapat RT / Acara Pernikahan">
+                    </div>
+
                     <button type="submit" id="btnSubmit">Ajukan Peminjaman</button>
                 </form>
             </div>
@@ -248,7 +255,6 @@
             </div>
         </div>
 
-        <!-- Kolom Kanan: Dashboard Admin & Log Peminjaman -->
         <div class="card">
             <h2>Daftar Pengajuan & Status Peminjaman</h2>
             <div style="overflow-x: auto;">
@@ -261,11 +267,11 @@
                             <th>Periode Pinjam</th>
                             <th>Untuk Keperluan</th>
                             <th>Status</th>
-                            <th>Aksi Petugas (Admin)</th>
+                            <th id="thAksi" style="display: none;">Aksi Petugas (Admin)</th>
                         </tr>
                     </thead>
                     <tbody id="tabelPeminjaman">
-                        <tr><td colspan="6" style="text-align:center;">Memuat databasearsip cloud...</td></tr>
+                        <tr><td colspan="6" style="text-align:center;">Memuat database arsip cloud...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -278,66 +284,68 @@
         const SUPABASE_URL = "https://limsjzfxiyvfjlnvytgi.supabase.co"; 
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpbXNqemZ4aXl2ZmpsbnZ5dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NjAxNTYsImV4cCI6MjA5NTAzNjE1Nn0.AfQITh1nH-1cAo2O39uSPDLEKiK7XxUQLuCxP_GECnE";
 
-        // 2. Membuat koneksi ke Supabase (Kita beri nama _supabase)
+        // 2. Membuat koneksi ke Supabase
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-// 1. Fungsi untuk memunculkan kotak login saat tombol "Login Admin" diklik
-function tampilkanFormLogin() {
-    const email = prompt("Masukkan Email Admin:");
-    const password = prompt("Masukkan Password Admin:");
-    
-    // Jika user mengisi kedua kolom tersebut, jalankan fungsi login
-    if (email && password) {
-        loginAdmin(email, password);
-    }
-}
+        
+        let isAdminActive = false;
 
-// 2. Fungsi Proses Login ke Supabase
-async function loginAdmin(email, password) {
-    const { data, error } = await _supabase.auth.signInWithPassword({
-        email: email,
-        password: password,
-    });
+        // Fungsi untuk memunculkan kotak login saat tombol "Login Admin" diklik
+        function tampilkanFormLogin() {
+            const email = prompt("Masukkan Email Admin:");
+            const password = prompt("Masukkan Password Admin:");
+            
+            if (email && password) {
+                loginAdmin(email, password);
+            }
+        }
 
-    if (error) {
-        alert("Gagal Login: " + error.message);
-    } else {
-        alert("Login Berhasil! Akses Admin Aktif.");
-        window.location.reload(); // Refresh halaman agar token admin aktif
-    }
-}
+        // Fungsi Proses Login ke Supabase
+        async function loginAdmin(email, password) {
+            const { data, error } = await _supabase.auth.signInWithPassword({
+                email: email,
+                password: password,
+            });
 
-// 3. Fungsi Proses Logout
-async function logoutAdmin() {
-    const { error } = await _supabase.auth.signOut();
-    if (!error) {
-        alert("Berhasil keluar dari mode Admin.");
-        window.location.reload(); // Refresh halaman agar kembali jadi publik biasa
-    }
-}
+            if (error) {
+                alert("Gagal Login: " + error.message);
+            } else {
+                alert("Login Berhasil! Akses Admin Aktif.");
+                window.location.reload();
+            }
+        }
 
-// 4. Otomatis Deteksi Status Login Saat Website Dibuka
-// (Untuk mengatur tombol mana yang muncul: Login atau Logout)
-async function cekStatusLogin() {
-    const { data: { session } } = await _supabase.auth.getSession();
-    
-    const btnLogin = document.getElementById('btnLogin');
-    const btnLogout = document.getElementById('btnLogout');
+        // Fungsi Proses Logout
+        async function logoutAdmin() {
+            const { error } = await _supabase.auth.signOut();
+            if (!error) {
+                alert("Berhasil keluar dari mode Admin.");
+                window.location.reload();
+            }
+        }
 
-    if (session) {
-        // Jika sedang login (Admin)
-        if(btnLogin) btnLogin.style.display = 'none';
-        if(btnLogout) btnLogout.style.display = 'inline-block';
-        console.log("Status: Logged In sebagai Admin");
-    } else {
-        // Jika tidak login (Publik biasa)
-        if(btnLogin) btnLogin.style.display = 'inline-block';
-        if(btnLogout) btnLogout.style.display = 'none';
-        console.log("Status: Publik Biasa");
-    }
-}
+        // Otomatis Deteksi Status Login Saat Website Dibuka
+        async function cekStatusLogin() {
+            const { data: { session } } = await _supabase.auth.getSession();
+            
+            const btnLogin = document.getElementById('btnLogin');
+            const btnLogout = document.getElementById('btnLogout');
+            const thAksi = document.getElementById('thAksi');
 
-// Jalankan fungsi cek status setiap kali halaman selesai dimuat
-document.addEventListener('DOMContentLoaded', cekStatusLogin);
+            if (session) {
+                isAdminActive = true;
+                if(btnLogin) btnLogin.style.display = 'none';
+                if(btnLogout) btnLogout.style.display = 'inline-block';
+                if(thAksi) thAksi.style.display = 'table-cell';
+                console.log("Status: Logged In sebagai Admin");
+            } else {
+                isAdminActive = false;
+                if(btnLogin) btnLogin.style.display = 'inline-block';
+                if(btnLogout) btnLogout.style.display = 'none';
+                if(thAksi) thAksi.style.display = 'none';
+                console.log("Status: Publik Biasa");
+            }
+        }
+
         // 3. Data Stok Barang
         const stokBarang = {
             "Pendapa": 1,
@@ -426,53 +434,19 @@ document.addEventListener('DOMContentLoaded', cekStatusLogin);
 
         selectBarang.addEventListener('change', updateInfoJadwal);
 
-function tampilkanData() {
-    tabel.innerHTML = '';
-    
-    if (dataPeminjaman.length === 0) {
-        // Colspan diubah ke 7 karena jumlah kolom sekarang ada 7
-        tabel.innerHTML = `<tr><td colspan="7" style="text-align:center;">Tidak ada riwayat arsip di cloud.</td></tr>`;
-        return;
-    }
+        function tampilkanData() {
+            tabel.innerHTML = '';
+            
+            if (dataPeminjaman.length === 0) {
+                tabel.innerHTML = `<tr><td colspan="${isAdminActive ? 7 : 6}" style="text-align:center;">Tidak ada riwayat arsip di cloud.</td></tr>`;
+                return;
+            }
 
-    dataPeminjaman.forEach((item) => {
-        let badgeClass = "badge-warning";
-        if (item.status === "Disetujui") badgeClass = "badge-info";
-        if (item.status === "Dikembalikan") badgeClass = "badge-success";
-        if (item.status === "Ditolak") badgeClass = "badge-danger";
-
-        // Menyusun baris tabel baru yang sudah dilengkapi kolom Keperluan
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>
-                <strong>${item.nama}</strong><br>
-                <small style="color: #666;">
-                    📍 ${item.alamat}<br>
-                    📞 ${item.noWa || '-'}
-                </small>
-            </td>
-            <td>${item.barang}</td>
-            <td>${item.jumlah}</td>
-            <td>
-                <small>
-                    🛫 ${item.tglPinjam}<br>
-                    🛬 ${item.tglKembali}
-                </small>
-            </td>
-            <td>${item.keperluan || '-'}</td> <!-- Kolom keperluan baru dimasukkan di sini -->
-            <td><span class="badge ${badgeClass}">${item.status}</span></td>
-            <td>
-                <div class="btn-group">
-                    <button class="btn btn-setujui" onclick="ubahStatus('${item.id}', 'Disetujui')" style="display: ${item.status === 'Diajukan' ? 'inline-block' : 'none'}">Setujui</button>
-                    <button class="btn btn-tolak" onclick="ubahStatus('${item.id}', 'Ditolak')" style="display: ${item.status === 'Diajukan' ? 'inline-block' : 'none'}">Tolak</button>
-                    <button class="btn btn-kembali" onclick="ubahStatus('${item.id}', 'Dikembalikan')" style="display: ${item.status === 'Disetujui' ? 'inline-block' : 'none'}">Kembalikan</button>
-                    <button class="btn btn-hapus" onclick="hapusData('${item.id}')">Hapus</button>
-                </div>
-            </td>
-        `;
-        tabel.appendChild(row);
-    });
-}
+            dataPeminjaman.forEach((item) => {
+                let badgeClass = "badge-warning";
+                if (item.status === "Disetujui") badgeClass = "badge-info";
+                if (item.status === "Dikembalikan") badgeClass = "badge-success";
+                if (item.status === "Ditolak") badgeClass = "badge-danger";
 
                 let tombolAksi = "-";
                 if (item.status === "Diajukan") {
@@ -485,20 +459,28 @@ function tampilkanData() {
                 }
 
                 const row = document.createElement('tr');
-                row.innerHTML = `
+                
+                let htmlContent = `
                     <td>
                         <b>${item.nama}</b>
                         <div class="detail-peminjam">
                             📍 ${item.alamat}<br>
-                            📱 ${item.noWa}
+                            📱 ${item.noWa || '-'}
                         </div>
                     </td>
                     <td>${item.barang}</td>
                     <td>${item.jumlah}</td>
-                    <td><small>${item.tglPinjam} s/d ${item.tglKembali}</small></td>
+                    <td><small>🛫 ${item.tglPinjam}<br>🛬 ${item.tglKembali}</small></td>
+                    <td>${item.keperluan || '-'}</td>
                     <td><span class="badge ${badgeClass}">${item.status}</span></td>
-                    <td>${tombolAksi}</td>
                 `;
+
+                // Jika berstatus Admin, tampilkan kolom Aksi Petugas
+                if (isAdminActive) {
+                    htmlContent += `<td>${tombolAksi}</td>`;
+                }
+
+                row.innerHTML = htmlContent;
                 tabel.appendChild(row);
             });
         }
@@ -523,7 +505,6 @@ function tampilkanData() {
                 return;
             }
 
-            // Memasukkan record ke Supabase (_supabase diperbaiki)
             const { error } = await _supabase
                 .from('peminjaman')
                 .insert([{ 
@@ -545,7 +526,7 @@ function tampilkanData() {
                 form.reset();
                 document.getElementById('tglPinjam').valueAsDate = new Date();
                 document.getElementById('tglKembali').valueAsDate = new Date();
-                await ambilDataDariSupabase(); // Sinkronisasi ulang tabel
+                await ambilDataDariSupabase(); 
             }
             document.getElementById('btnSubmit').innerText = "Ajukan Peminjaman";
         });
@@ -573,7 +554,6 @@ function tampilkanData() {
                 }
             }
 
-            // Kirim perintah UPDATE ke database cloud Supabase (_supabase diperbaiki)
             const { error } = await _supabase
                 .from('peminjaman')
                 .update({ status: keputusan })
@@ -583,13 +563,14 @@ function tampilkanData() {
                 alert("Gagal merubah status arsip: " + error.message);
             } else {
                 alert(`Status arsip digital diubah: ${keputusan}`);
-                window.location.reload(); // Ambil data segar dari server
+                window.location.reload();
             }
         }
 
         // Jalankan fungsi setelah seluruh komponen halaman web siap
-        window.onload = function() {
-            ambilDataDariSupabase();
+        window.onload = async function() {
+            await cekStatusLogin();
+            await ambilDataDariSupabase();
         };
     </script>
 </body>
