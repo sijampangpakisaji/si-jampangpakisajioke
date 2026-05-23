@@ -93,6 +93,21 @@
             margin-bottom: 10px;
         }
 
+        .login-section {
+            margin: 20px;
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 5px;
+        }
+
+        .login-note {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+            font-style: italic;
+        }
+
         button {
             width: 100%;
             padding: 12px;
@@ -169,6 +184,8 @@
         .btn-tolak:hover { background-color: #c0392b; }
         .btn-kembali { background-color: var(--primary-color); }
         .btn-kembali:hover { background-color: #2980b9; }
+        .btn-download { background-color: #e67e22; text-decoration: none; color: white; display: inline-block; }
+        .btn-download:hover { background-color: #d35400; }
 
         /* Info Tanggal Terpesan */
         .info-jadwal {
@@ -192,9 +209,11 @@
         <p>Sistem Peminjaman Pendapa dan Barang di Kantor Kecamatan Pakis Aji</p>
     </header>
 
-    <div style="margin: 20px; text-align: right;">
+    <!-- Modifikasi Bagian Login Info -->
+    <div class="login-section">
         <button id="btnLogin" onclick="tampilkanFormLogin()" style="width: auto; display: inline-block;">Login Admin</button>
-        <button id="btnLogout" onclick="logoutAdmin()" style="width: auto; display: none; background-color: var(--danger-color);">Logout</button>
+        <span id="loginNote" class="login-note">*Hanya untuk petugas Admin</span>
+        <button id="btnLogout" onclick="logoutAdmin()" style="width: auto; display: none; background-color: var(--danger-color);">Logout Admin</button>
     </div>
 
     <div class="container">
@@ -243,6 +262,12 @@
                         <input type="text" id="keperluan" required placeholder="Contoh: Rapat RT / Acara Pernikahan">
                     </div>
 
+                    <!-- Input Baru: Upload Surat PDF -->
+                    <div class="form-group">
+                        <label for="suratPdf">Upload Surat Peminjaman (Format: PDF, Maks 2MB)</label>
+                        <input type="file" id="suratPdf" accept="application/pdf" required>
+                    </div>
+
                     <button type="submit" id="btnSubmit">Ajukan Peminjaman</button>
                 </form>
             </div>
@@ -267,11 +292,12 @@
                             <th>Periode Pinjam</th>
                             <th>Untuk Keperluan</th>
                             <th>Status</th>
+                            <th>Surat</th>
                             <th id="thAksi" style="display: none;">Aksi Petugas (Admin)</th>
                         </tr>
                     </thead>
                     <tbody id="tabelPeminjaman">
-                        <tr><td colspan="6" style="text-align:center;">Memuat database arsip cloud...</td></tr>
+                        <tr><td colspan="7" style="text-align:center;">Memuat database arsip cloud...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -289,7 +315,6 @@
         
         let isAdminActive = false;
 
-        // Fungsi untuk memunculkan kotak login saat tombol "Login Admin" diklik
         function tampilkanFormLogin() {
             const email = prompt("Masukkan Email Admin:");
             const password = prompt("Masukkan Password Admin:");
@@ -299,7 +324,6 @@
             }
         }
 
-        // Fungsi Proses Login ke Supabase
         async function loginAdmin(email, password) {
             const { data, error } = await _supabase.auth.signInWithPassword({
                 email: email,
@@ -314,7 +338,6 @@
             }
         }
 
-        // Fungsi Proses Logout
         async function logoutAdmin() {
             const { error } = await _supabase.auth.signOut();
             if (!error) {
@@ -323,30 +346,29 @@
             }
         }
 
-        // Otomatis Deteksi Status Login Saat Website Dibuka
         async function cekStatusLogin() {
             const { data: { session } } = await _supabase.auth.getSession();
             
             const btnLogin = document.getElementById('btnLogin');
+            const loginNote = document.getElementById('loginNote');
             const btnLogout = document.getElementById('btnLogout');
             const thAksi = document.getElementById('thAksi');
 
             if (session) {
                 isAdminActive = true;
                 if(btnLogin) btnLogin.style.display = 'none';
+                if(loginNote) loginNote.style.display = 'none';
                 if(btnLogout) btnLogout.style.display = 'inline-block';
                 if(thAksi) thAksi.style.display = 'table-cell';
-                console.log("Status: Logged In sebagai Admin");
             } else {
                 isAdminActive = false;
                 if(btnLogin) btnLogin.style.display = 'inline-block';
+                if(loginNote) loginNote.style.display = 'inline-block';
                 if(btnLogout) btnLogout.style.display = 'none';
                 if(thAksi) thAksi.style.display = 'none';
-                console.log("Status: Publik Biasa");
             }
         }
 
-        // 3. Data Stok Barang
         const stokBarang = {
             "Pendapa": 1,
             "Tenda UMKM": 5,
@@ -364,7 +386,6 @@
         document.getElementById('tglPinjam').valueAsDate = new Date();
         document.getElementById('tglKembali').valueAsDate = new Date();
 
-        // Mengambil seluruh data riwayat arsip asli dari Supabase Cloud
         async function ambilDataDariSupabase() {
             try {
                 let { data, error } = await _supabase
@@ -374,7 +395,7 @@
 
                 if (error) {
                     console.error("Gagal mengambil data database:", error.message);
-                    tabel.innerHTML = `<tr><td colspan="6" style="text-align:center; color:red;">Gagal memuat database: ${error.message}</td></tr>`;
+                    tabel.innerHTML = `<tr><td colspan="${isAdminActive ? 8 : 7}" style="text-align:center; color:red;">Gagal memuat database: ${error.message}</td></tr>`;
                     return;
                 }
                 dataPeminjaman = data || [];
@@ -382,7 +403,7 @@
                 updateInfoJadwal();
             } catch (err) {
                 console.error("Error Sistem:", err);
-                tabel.innerHTML = `<tr><td colspan="6" style="text-align:center; color:red;">Terjadi kesalahan sistem eksternal.</td></tr>`;
+                tabel.innerHTML = `<tr><td colspan="${isAdminActive ? 8 : 7}" style="text-align:center; color:red;">Terjadi kesalahan sistem eksternal.</td></tr>`;
             }
         }
 
@@ -438,7 +459,7 @@
             tabel.innerHTML = '';
             
             if (dataPeminjaman.length === 0) {
-                tabel.innerHTML = `<tr><td colspan="${isAdminActive ? 7 : 6}" style="text-align:center;">Tidak ada riwayat arsip di cloud.</td></tr>`;
+                tabel.innerHTML = `<tr><td colspan="${isAdminActive ? 8 : 7}" style="text-align:center;">Tidak ada riwayat arsip di cloud.</td></tr>`;
                 return;
             }
 
@@ -458,6 +479,16 @@
                     tombolAksi = `<button class="btn-action btn-kembali" onclick="responsAdmin(${item.id}, 'Dikembalikan')">Kembalikan</button>`;
                 }
 
+                // Kondisi tampilan surat download berdasarkan status login admin
+                let kolomSurat = "🔒 Login Admin";
+                if (isAdminActive) {
+                    if (item.url_surat) {
+                        kolomSurat = `<a href="${item.url_surat}" target="_blank" class="btn-action btn-download">⬇️ Unduh PDF</a>`;
+                    } else {
+                        kolomSurat = "Tidak ada file";
+                    }
+                }
+
                 const row = document.createElement('tr');
                 
                 let htmlContent = `
@@ -473,9 +504,9 @@
                     <td><small>🛫 ${item.tglPinjam}<br>🛬 ${item.tglKembali}</small></td>
                     <td>${item.keperluan || '-'}</td>
                     <td><span class="badge ${badgeClass}">${item.status}</span></td>
+                    <td>${kolomSurat}</td>
                 `;
 
-                // Jika berstatus Admin, tampilkan kolom Aksi Petugas
                 if (isAdminActive) {
                     htmlContent += `<td>${tombolAksi}</td>`;
                 }
@@ -485,10 +516,25 @@
             });
         }
 
-        // Menyimpan data pengajuan nyata baru langsung ke Cloud Database
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
             document.getElementById('btnSubmit').innerText = "Mengirim...";
+
+            const fileInput = document.getElementById('suratPdf');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert("Wajib mengunggah berkas surat PDF terlebih dahulu!");
+                document.getElementById('btnSubmit').innerText = "Ajukan Peminjaman";
+                return;
+            }
+
+            // Validasi Ukuran File (Maksimal 2 MB)
+            if (file.size > 2 * 1024 * 1024) {
+                alert("Gagal: Ukuran file PDF terlalu besar! Maksimal adalah 2MB.");
+                document.getElementById('btnSubmit').innerText = "Ajukan Peminjaman";
+                return;
+            }
 
             const nama = document.getElementById('nama').value;
             const alamat = document.getElementById('alamat').value;
@@ -505,33 +551,60 @@
                 return;
             }
 
-            const { error } = await _supabase
-                .from('peminjaman')
-                .insert([{ 
-                    nama: nama, 
-                    alamat: alamat, 
-                    noWa: noWa, 
-                    barang: barang, 
-                    jumlah: jumlahMohon, 
-                    tglPinjam: tglPinjam, 
-                    tglKembali: tglKembali,
-                    keperluan: keperluan,
-                    status: "Diajukan"
-                }]);
+            try {
+                // Proses unggah berkas PDF ke Supabase Storage (Bucket harus bernama "surat-peminjaman")
+                const namaFileUnik = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+                
+                const { data: uploadData, error: uploadError } = await _supabase
+                    .storage
+                    .from('surat-peminjaman')
+                    .upload(namaFileUnik, file);
 
-            if (error) {
-                alert("Gagal mengunggah pengajuan: " + error.message);
-            } else {
-                alert(`Permohonan peminjaman ${barang} berhasil disimpan di Arsip Cloud!`);
+                if (uploadError) {
+                    throw new Error("Gagal mengunggah file PDF: " + uploadError.message);
+                }
+
+                // Dapatkan link publik untuk download file PDF tersebut
+                const { data: urlData } = _supabase
+                    .storage
+                    .from('surat-peminjaman')
+                    .getPublicUrl(namaFileUnik);
+
+                const linkPublicPdf = urlData.publicUrl;
+
+                // Masukkan semua data formulir beserta link PDF ke tabel database
+                const { error: insertError } = await _supabase
+                    .from('peminjaman')
+                    .insert([{ 
+                        nama: nama, 
+                        alamat: alamat, 
+                        noWa: noWa, 
+                        barang: barang, 
+                        jumlah: jumlahMohon, 
+                        tglPinjam: tglPinjam, 
+                        tglKembali: tglKembali,
+                        keperluan: keperluan,
+                        status: "Diajukan",
+                        url_surat: linkPublicPdf // Pastikan kolom ini sudah dibuat di tabel Supabase
+                    }]);
+
+                if (insertError) {
+                    throw new Error("Gagal menyimpan data pengajuan: " + insertError.message);
+                }
+
+                alert(`Permohonan peminjaman ${barang} beserta surat berhasil dikirim!`);
                 form.reset();
                 document.getElementById('tglPinjam').valueAsDate = new Date();
                 document.getElementById('tglKembali').valueAsDate = new Date();
                 await ambilDataDariSupabase(); 
+
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                document.getElementById('btnSubmit').innerText = "Ajukan Peminjaman";
             }
-            document.getElementById('btnSubmit').innerText = "Ajukan Peminjaman";
         });
 
-        // Petugas memperbarui status arsip di Cloud secara permanen
         async function responsAdmin(id, keputusan) {
             const index = dataPeminjaman.findIndex(item => item.id === id);
             if (index === -1) return;
@@ -567,7 +640,6 @@
             }
         }
 
-        // Jalankan fungsi setelah seluruh komponen halaman web siap
         window.onload = async function() {
             await cekStatusLogin();
             await ambilDataDariSupabase();
