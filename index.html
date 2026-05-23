@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Peminjaman Pendapa dan Banrang di Kantor Kecamatan Pakis Aji</title>
+    <title>Sistem Peminjaman Pendapa dan Barang di Kantor Kecamatan Pakis Aji</title>
     <!-- Memanggil SDK Supabase agar HTML bisa tersambung ke Database Cloud -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -232,6 +232,10 @@
                         <label for="tglKembali">Tanggal Kembali</label>
                         <input type="date" id="tglKembali" required>
                     </div>
+<div class="form-group" style="margin-bottom: 15px;">
+    <label for="keperluan">Untuk Keperluan:</label>
+    <input type="text" id="keperluan" name="keperluan" required style="width: 100%; padding: 8px;">
+</div>
                     <button type="submit" id="btnSubmit">Ajukan Peminjaman</button>
                 </form>
             </div>
@@ -255,6 +259,7 @@
                             <th>Barang</th>
                             <th>Jumlah</th>
                             <th>Periode Pinjam</th>
+                            <th>Untuk Keperluan</th>
                             <th>Status</th>
                             <th>Aksi Petugas (Admin)</th>
                         </tr>
@@ -421,19 +426,53 @@ document.addEventListener('DOMContentLoaded', cekStatusLogin);
 
         selectBarang.addEventListener('change', updateInfoJadwal);
 
-        function tampilkanData() {
-            tabel.innerHTML = '';
-            
-            if (dataPeminjaman.length === 0) {
-                tabel.innerHTML = `<tr><td colspan="6" style="text-align:center;">Tidak ada riwayat arsip di cloud.</td></tr>`;
-                return;
-            }
+function tampilkanData() {
+    tabel.innerHTML = '';
+    
+    if (dataPeminjaman.length === 0) {
+        // Colspan diubah ke 7 karena jumlah kolom sekarang ada 7
+        tabel.innerHTML = `<tr><td colspan="7" style="text-align:center;">Tidak ada riwayat arsip di cloud.</td></tr>`;
+        return;
+    }
 
-            dataPeminjaman.forEach((item) => {
-                let badgeClass = "badge-warning";
-                if (item.status === "Disetujui") badgeClass = "badge-info";
-                if (item.status === "Dikembalikan") badgeClass = "badge-success";
-                if (item.status === "Ditolak") badgeClass = "badge-danger";
+    dataPeminjaman.forEach((item) => {
+        let badgeClass = "badge-warning";
+        if (item.status === "Disetujui") badgeClass = "badge-info";
+        if (item.status === "Dikembalikan") badgeClass = "badge-success";
+        if (item.status === "Ditolak") badgeClass = "badge-danger";
+
+        // Menyusun baris tabel baru yang sudah dilengkapi kolom Keperluan
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>
+                <strong>${item.nama}</strong><br>
+                <small style="color: #666;">
+                    📍 ${item.alamat}<br>
+                    📞 ${item.noWa || '-'}
+                </small>
+            </td>
+            <td>${item.barang}</td>
+            <td>${item.jumlah}</td>
+            <td>
+                <small>
+                    🛫 ${item.tglPinjam}<br>
+                    🛬 ${item.tglKembali}
+                </small>
+            </td>
+            <td>${item.keperluan || '-'}</td> <!-- Kolom keperluan baru dimasukkan di sini -->
+            <td><span class="badge ${badgeClass}">${item.status}</span></td>
+            <td>
+                <div class="btn-group">
+                    <button class="btn btn-setujui" onclick="ubahStatus('${item.id}', 'Disetujui')" style="display: ${item.status === 'Diajukan' ? 'inline-block' : 'none'}">Setujui</button>
+                    <button class="btn btn-tolak" onclick="ubahStatus('${item.id}', 'Ditolak')" style="display: ${item.status === 'Diajukan' ? 'inline-block' : 'none'}">Tolak</button>
+                    <button class="btn btn-kembali" onclick="ubahStatus('${item.id}', 'Dikembalikan')" style="display: ${item.status === 'Disetujui' ? 'inline-block' : 'none'}">Kembalikan</button>
+                    <button class="btn btn-hapus" onclick="hapusData('${item.id}')">Hapus</button>
+                </div>
+            </td>
+        `;
+        tabel.appendChild(row);
+    });
+}
 
                 let tombolAksi = "-";
                 if (item.status === "Diajukan") {
@@ -476,6 +515,7 @@ document.addEventListener('DOMContentLoaded', cekStatusLogin);
             const jumlahMohon = parseInt(document.getElementById('jumlah').value);
             const tglPinjam = document.getElementById('tglPinjam').value;
             const tglKembali = document.getElementById('tglKembali').value;
+            const keperluan = document.getElementById('keperluan').value;
 
             if (new Date(tglPinjam) > new Date(tglKembali)) {
                 alert("Kesalahan: Tanggal kembali tidak boleh mendahului tanggal pinjam!");
@@ -494,6 +534,7 @@ document.addEventListener('DOMContentLoaded', cekStatusLogin);
                     jumlah: jumlahMohon, 
                     tglPinjam: tglPinjam, 
                     tglKembali: tglKembali,
+                    keperluan: keperluan,
                     status: "Diajukan"
                 }]);
 
