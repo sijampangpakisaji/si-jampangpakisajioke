@@ -482,7 +482,7 @@
                 alert("Gagal merubah status arsip: " + error.message);
             } else {
                 alert(`Status arsip digital diubah: ${keputusan}`);
-                await ambilDataDariSupabase(); // Ambil data segar dari server
+                window.location.reload(); // Ambil data segar dari server
             }
         }
 
