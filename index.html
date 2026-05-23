@@ -187,7 +187,10 @@
         <h1>SI-JAMPANG PAKIS AJI</h1>
         <p>Sistem Peminjaman Pendapa dan Barang di Kantor Kecamatan Pakis Aji</p>
     </header>
-
+<div style="margin: 20px; text-align: right;">
+    <button id="btnLogin" onclick="tampilkanFormLogin()">Login Admin</button>
+    <button id="btnLogout" onclick="logoutAdmin()" style="display: none;">Logout</button>
+</div>
     <div class="container">
         
         <!-- Kolom Kiri: Form Peminjaman & Informasi -->
@@ -272,7 +275,64 @@
 
         // 2. Membuat koneksi ke Supabase (Kita beri nama _supabase)
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// 1. Fungsi untuk memunculkan kotak login saat tombol "Login Admin" diklik
+function tampilkanFormLogin() {
+    const email = prompt("Masukkan Email Admin:");
+    const password = prompt("Masukkan Password Admin:");
+    
+    // Jika user mengisi kedua kolom tersebut, jalankan fungsi login
+    if (email && password) {
+        loginAdmin(email, password);
+    }
+}
 
+// 2. Fungsi Proses Login ke Supabase
+async function loginAdmin(email, password) {
+    const { data, error } = await _supabase.auth.signInWithPassword({
+        email: email,
+        password: password,
+    });
+
+    if (error) {
+        alert("Gagal Login: " + error.message);
+    } else {
+        alert("Login Berhasil! Akses Admin Aktif.");
+        window.location.reload(); // Refresh halaman agar token admin aktif
+    }
+}
+
+// 3. Fungsi Proses Logout
+async function logoutAdmin() {
+    const { error } = await _supabase.auth.signOut();
+    if (!error) {
+        alert("Berhasil keluar dari mode Admin.");
+        window.location.reload(); // Refresh halaman agar kembali jadi publik biasa
+    }
+}
+
+// 4. Otomatis Deteksi Status Login Saat Website Dibuka
+// (Untuk mengatur tombol mana yang muncul: Login atau Logout)
+async function cekStatusLogin() {
+    const { data: { session } } = await _supabase.auth.getSession();
+    
+    const btnLogin = document.getElementById('btnLogin');
+    const btnLogout = document.getElementById('btnLogout');
+
+    if (session) {
+        // Jika sedang login (Admin)
+        if(btnLogin) btnLogin.style.display = 'none';
+        if(btnLogout) btnLogout.style.display = 'inline-block';
+        console.log("Status: Logged In sebagai Admin");
+    } else {
+        // Jika tidak login (Publik biasa)
+        if(btnLogin) btnLogin.style.display = 'inline-block';
+        if(btnLogout) btnLogout.style.display = 'none';
+        console.log("Status: Publik Biasa");
+    }
+}
+
+// Jalankan fungsi cek status setiap kali halaman selesai dimuat
+document.addEventListener('DOMContentLoaded', cekStatusLogin);
         // 3. Data Stok Barang
         const stokBarang = {
             "Pendapa": 1,
