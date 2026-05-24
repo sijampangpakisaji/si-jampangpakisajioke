@@ -603,12 +603,32 @@
             }
         }
 
-        // FUNGSI AKSI ADMIN: HAPUS PILIHAN BARANG
+       // FUNGSI AKSI ADMIN: HAPUS PILIHAN BARANG
         async function hapusBarangCloud(namaBarang) {
             if(confirm(`Apakah Anda yakin ingin menghapus "${namaBarang}" dari daftar pilihan selamanya?`)) {
-                const { error } = await _supabase.from('pengaturan_aplikasi').delete().eq('key', namaBarang);
-                if(error) alert("Gagal menghapus: " + error.message);
-                else await ambilDataDariSupabase();
+                try {
+                    // 1. Hapus data secara permanen di database Supabase
+                    const { error } = await _supabase
+                        .from('pengaturan_aplikasi')
+                        .delete()
+                        .eq('key', namaBarang);
+                    
+                    if(error) throw error;
+                    
+                    // 2. Bersihkan nama barang dari memori lokal JavaScript (stokBarang)
+                    if (typeof stokBarang !== 'undefined' && stokBarang[namaBarang] !== undefined) {
+                        delete stokBarang[namaBarang];
+                    }
+
+                    alert(`Barang "${namaBarang}" berhasil dihapus dari cloud.`);
+                    
+                    // 3. Ambil data terbaru dan paksa render ulang komponen drop-down & tabel
+                    await ambilDataDariSupabase();
+
+                } catch (error) {
+                    console.error("Gagal menghapus barang:", error);
+                    alert("Gagal menghapus: " + error.message);
+                }
             }
         }
 
