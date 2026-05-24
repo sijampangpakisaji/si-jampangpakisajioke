@@ -676,106 +676,72 @@
                 return;
             }
 
-const barang = document.getElementById('barang').value;
-            const jumlah = parseInt(document.getElementById('jumlah').value);
+            const nama = document.getElementById('nama').value;
+            const alamat = document.getElementById('alamat').value;
+            const noWa = document.getElementById('noWa').value;
+            const barang = selectBarang.value;
+            const jumlahMohon = parseInt(document.getElementById('jumlah').value);
             const tglPinjam = document.getElementById('tglPinjam').value;
             const tglKembali = document.getElementById('tglKembali').value;
             const keperluan = document.getElementById('keperluan').value;
 
-            // 1. Validasi Urutan Tanggal
             if (new Date(tglPinjam) > new Date(tglKembali)) {
-                alert("Tanggal kembali tidak boleh mendahului tanggal pinjam!");
+                alert("Tanggal salah!");
                 document.getElementById('btnSubmit').innerText = "Ajukan Peminjaman";
                 return;
             }
 
-            // 2. Validasi Ketersediaan Stok Barang per Hari (Real-time)
-            let rentangTanggal = dapatkanRentangTanggal(tglPinjam, tglKembali);
-            let stokMaksimal = stokBarang[barang] || 0;
-
-            for (let i = 0; i < rentangTanggal.length; i++) {
-                let tgl = rentangTanggal[i];
-                let terpakai = hitungStokTerpakai(barang, tgl);
-                if (terpakai + jumlah > stokMaksimal) {
-                    alert(`Maaf, sisa stok ${barang} pada tanggal ${tgl} tidak mencukupi.\nTerpakai: ${terpakai}, Kapasitas Maks: ${stokMaksimal}.\nSilahkan kurangi jumlah atau pilih tanggal lain.`);
-                    document.getElementById('btnSubmit').innerText = "Ajukan Peminjaman";
-                    return;
-                }
-            }
-
             try {
-                // 3. Proses Upload Surat PDF ke Supabase Storage Bucket 'surat_peminjaman'
-                const fileExt = file.name.split('.').pop();
-                const fileName = `${Date.now()}_${nama.replace(/\s+/g, '_')}.${fileExt}`;
-                const filePath = `surat/${fileName}`;
+                const namaFileUnik = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+                const { error: uploadError } = await _supabase.storage.from('surat-peminjaman').upload(namaFileUnik, file);
+                if (uploadError) throw new Error("Gagal upload PDF: " + uploadError.message);
 
-                let { error: uploadError, data: uploadData } = await _supabase.storage
-                    .from('surat_peminjaman')
-                    .upload(filePath, file);
+                const { data: urlData } = _supabase.storage.from('surat-peminjaman').getPublicUrl(namaFileUnik);
+                
+                const { error: insertError } = await _supabase.from('peminjaman').insert([{ 
+                    nama, alamat, noWa, barang, jumlah: jumlahMohon, tglPinjam, tglKembali, keperluan, status: "Diajukan", url_surat: urlData.publicUrl
+                }]);
 
-                if (uploadError) throw uploadError;
+                if (insertError) throw new Error("Gagal simpan data: " + insertError.message);
 
-                // Ambil Public URL dari file yang diunggah
-                const { data: { publicUrl } } = _supabase.storage
-                    .from('surat_peminjaman')
-                    .getPublicUrl(filePath);
-
-                // 4. Masukkan Data Transaksi ke Tabel 'peminjaman'
-                const { error: insertError } = await _supabase
-                    .from('peminjaman')
-                    .insert([{
-                        nama,
-                        alamat,
-                        noWa,
-                        barang,
-                        jumlah,
-                        tglPinjam,
-                        tglKembali,
-                        keperluan,
-                        url_surat: publicUrl,
-                        status: 'Diajukan'
-                    }]);
-
-                if (insertError) throw insertError;
-
-                alert("Pengajuan peminjaman berhasil dikirim! Silahkan pantau statusnya secara berkala.");
+                alert("Permohonan sukses terkirim!");
                 form.reset();
-                document.getElementById('tglPinjam').valueAsDate = new Date();
-                document.getElementById('tglKembali').valueAsDate = new Date();
-                await ambilDataDariSupabase();
-
+                await ambilDataDariSupabase(); 
             } catch (err) {
-                console.error("Gagal Pengajuan:", err);
-                alert("Terjadi kesalahan sistem: " + (err.message || err));
+                alert(err.message);
             } finally {
                 document.getElementById('btnSubmit').innerText = "Ajukan Peminjaman";
             }
         });
 
-        // FUNGSI AKSI ADMIN: UPDATE STATUS PEMINJAMAN (Setujui / Tolak / Kembalikan)
-        async function responsAdmin(idPeminjaman, statusBaru) {
-            if (confirm(`Apakah Anda yakin ingin mengubah status data ini menjadi "${statusBaru}"?`)) {
-                try {
-                    const { error } = await _supabase
-                        .from('peminjaman')
-                        .update({ status: statusBaru })
-                        .eq('id', idPeminjaman);
+        async function responsAdmin(id, keputusan) {
+            const index = dataPeminjaman.findIndex(item => item.id === id);
+            if (index === -1) return;
+            const target = dataPeminjaman[index];
 
-                    if (error) throw error;
-                    
-                    alert(`Status berhasil diperbarui menjadi: ${statusBaru}`);
-                    await ambilDataDariSupabase();
-                } catch (err) {
-                    alert("Gagal memperbarui status: " + err.message);
+            if (keputusan === "Disetujui") {
+                let rentangTanggalMohon = dapatkanRentangTanggal(target.tglPinjam, target.tglKembali);
+                let stokMaksimal = stokBarang[target.barang] || 0;
+
+                for (let i = 0; i < rentangTanggalMohon.length; i++) {
+                    let tglCek = rentangTanggalMohon[i];
+                    let terpakai = hitungStokTerpakai(target.barang, tglCek);
+                    if (target.jumlah > (stokMaksimal - terpakai)) {
+                        alert(`Stok tidak cukup pada tanggal ${tglCek}!`);
+                        return;
+                    }
                 }
             }
+
+            const { error } = await _supabase.from('peminjaman').update({ status: keputusan }).eq('id', id);
+            if (error) alert("Gagal update status: " + error.message);
+            else { alert("Status berhasil diubah!"); window.location.reload(); }
         }
 
-        // Inisialisasi awal saat halaman dimuat
-        (async function inisialisasiAplikasi() {
+        window.onload = async function() {
             await cekStatusLogin();
             await ambilDataDariSupabase();
-        })();
+        };
     </script>
 </body>
 </html>
