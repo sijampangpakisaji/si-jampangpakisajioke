@@ -446,7 +446,7 @@
             }
         }
 
-        // AMBIL DATA DARI DUA TABEL (PENGATURAN + PEMINJAMAN)
+       // AMBIL DATA DARI DUA TABEL (PENGATURAN + PEMINJAMAN)
         async function ambilDataDariSupabase() {
             try {
                 // 1. Ambil Pengaturan Aplikasi & Barang
@@ -454,48 +454,58 @@
                     .from('pengaturan_aplikasi')
                     .select('*');
 
-                if (!configError && configData) {
-                    selectBarang.innerHTML = '<option value="">-- Pilih Barang --</option>';
-                    const listAdmin = document.getElementById('listBarangAdmin');
-                    if(listAdmin) listAdmin.innerHTML = '';
-
-                    configData.forEach(item => {
-                        if (item.key === 'url_banner') {
-                            // Atur Banner secara real-time
-                            if (item.nilai) {
-                                const headerEl = document.getElementById('mainHeader');
-                                headerEl.style.backgroundImage = `url('${item.nilai}')`;
-                                headerEl.classList.add('has-banner');
-                                document.getElementById('inputUrlBanner').value = item.nilai;
-                            }
-                        } else {
-                            // Ini adalah data barang
-                            let detail = JSON.parse(item.nilai);
-                            stokBarang[item.key] = detail.stok;
-
-                            // Masukkan ke select form
-                            let optionText = `${item.key} (${detail.aktif ? 'Tersedia: ' + detail.stok : 'Saat ini belum bisa dilayani'})`;
-                            let op = document.createElement('option');
-                            op.value = item.key;
-                            op.innerText = optionText;
-                            op.dataset.aktif = detail.aktif;
-                            selectBarang.appendChild(op);
-
-                            // Masukkan ke Panel Manajemen Admin
-                            if (listAdmin) {
-                                listAdmin.innerHTML += `
-                                    <div class="admin-item-row">
-                                        <div><b>${item.key}</b> (Stok: ${detail.stok}) - <span style="color:${detail.aktif ? 'green':'red'}">${detail.aktif ? 'Aktif':'Nonaktif'}</span></div>
-                                        <div>
-                                            <button onclick="ubahStatusBarangCloud('${item.key}', ${!detail.aktif})" class="btn-action" style="background-color: var(--primary-color); padding: 4px 8px;">${detail.aktif ? 'Matikan':'Aktifkan'}</button>
-                                            <button onclick="hapusBarangCloud('${item.key}')" class="btn-action" style="background-color: var(--danger-color); padding: 4px 8px;">Hapus</button>
-                                        </div>
-                                    </div>
-                                `;
-                            }
-                        }
-                    });
+                // SISTEM CADANGAN: Jika tabel di Supabase kosong/error, gunakan data default ini
+                if (configError || !configData || configData.length === 0) {
+                    console.warn("Menggunakan data cadangan karena tabel pengaturan_aplikasi belum siap.");
+                    configData = [
+                        { key: 'url_banner', nilai: '' },
+                        { key: 'Pendapa', nilai: '{"stok": 1, "aktif": true}' },
+                        { key: 'Tenda UMKM', nilai: '{"stok": 8, "aktif": true}' },
+                        { key: 'Kostum Jawa', nilai: '{"stok": 10, "aktif": false}' },
+                        { key: 'Kursi', nilai: '{"stok": 50, "aktif": false}' }
+                    ];
                 }
+
+                // Proses merender data barang ke dalam select option dan panel admin
+                selectBarang.innerHTML = '<option value="">-- Pilih Barang --</option>';
+                const listAdmin = document.getElementById('listBarangAdmin');
+                if(listAdmin) listAdmin.innerHTML = '';
+
+                configData.forEach(item => {
+                    if (item.key === 'url_banner') {
+                        if (item.nilai) {
+                            const headerEl = document.getElementById('mainHeader');
+                            headerEl.style.backgroundImage = `url('${item.nilai}')`;
+                            headerEl.classList.add('has-banner');
+                            document.getElementById('inputUrlBanner').value = item.nilai;
+                        }
+                    } else {
+                        // Membaca data barang
+                        let detail = JSON.parse(item.nilai);
+                        stokBarang[item.key] = detail.stok;
+
+                        // Masukkan ke select form warga
+                        let optionText = `${item.key} (${detail.aktif ? 'Tersedia: ' + detail.stok : 'Saat ini belum bisa dilayani'})`;
+                        let op = document.createElement('option');
+                        op.value = item.key;
+                        op.innerText = optionText;
+                        op.dataset.aktif = detail.aktif;
+                        selectBarang.appendChild(op);
+
+                        // Masukkan ke Panel Manajemen Admin (jika admin login)
+                        if (listAdmin) {
+                            listAdmin.innerHTML += `
+                                <div class="admin-item-row">
+                                    <div><b>${item.key}</b> (Stok: ${detail.stok}) - <span style="color:${detail.aktif ? 'green':'red'}">${detail.aktif ? 'Aktif':'Nonaktif'}</span></div>
+                                    <div>
+                                        <button onclick="ubahStatusBarangCloud('${item.key}', ${!detail.aktif})" class="btn-action" style="background-color: var(--primary-color); padding: 4px 8px;">${detail.aktif ? 'Matikan':'Aktifkan'}</button>
+                                        <button onclick="hapusBarangCloud('${item.key}')" class="btn-action" style="background-color: var(--danger-color); padding: 4px 8px;">Hapus</button>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    }
+                });
 
                 // 2. Ambil data transaksi peminjaman
                 let { data, error } = await _supabase
