@@ -550,28 +550,57 @@
             else await ambilDataDariSupabase();
         }
 
-        // FUNGSI AKSI ADMIN: TAMBAH ATAU EDIT BARANG
+       // FUNGSI AKSI ADMIN: TAMBAH ATAU EDIT BARANG
         async function tambahAtauEditBarang() {
-            const nama = document.getElementById('addNamaBarang').value.trim();
-            const stok = parseInt(document.getElementById('addStokBarang').value);
-            if(!nama || isNaN(stok)) { alert("Nama dan Jumlah stok wajib valid!"); return; }
+            const namaInput = document.getElementById('addNamaBarang');
+            const stokInput = document.getElementById('addStokBarang');
+            
+            const nama = namaInput.value.trim();
+            const stok = parseInt(stokInput.value);
+            
+            if(!nama || isNaN(stok)) { 
+                alert("Nama dan Jumlah stok wajib diisi dengan benar!"); 
+                return; 
+            }
 
             let detail = { stok: stok, aktif: true };
             
-            // Cek apakah barang sudah ada di lokal
-            if(stokBarang[nama] !== undefined) {
-                // Proses Edit/Update
-                const { error } = await _supabase.from('pengaturan_aplikasi').update({ nilai: JSON.stringify(detail) }).eq('key', nama);
-                if (error) alert("Gagal edit data: " + error.message);
-            } else {
-                // Proses Tambah Baru (Upsert)
-                const { error } = await _supabase.from('pengaturan_aplikasi').insert([{ key: nama, nilai: JSON.stringify(detail), deskripsi: 'Ditambahkan via Admin' }]);
-                if (error) alert("Gagal tambah data baru: " + error.message);
-            }
+            try {
+                // Cek apakah barang sudah ada di lokal
+                if(stokBarang[nama] !== undefined) {
+                    // Proses Edit/Update jika barang sudah ada
+                    const { error } = await _supabase
+                        .from('pengaturan_aplikasi')
+                        .update({ nilai: JSON.stringify(detail) })
+                        .eq('key', nama);
+                        
+                    if (error) throw error;
+                    alert(`Berhasil memperbarui stok "${nama}" menjadi ${stok}!`);
+                } else {
+                    // Proses Tambah Baru (Insert) jika belum ada
+                    const { error } = await _supabase
+                        .from('pengaturan_aplikasi')
+                        .insert([{ 
+                            key: nama, 
+                            nilai: JSON.stringify(detail), 
+                            deskripsi: 'Ditambahkan via Admin' 
+                        }]);
+                        
+                    if (error) throw error;
+                    alert(`Berhasil menambahkan barang baru: "${nama}"!`);
+                }
 
-            document.getElementById('addNamaBarang').value = '';
-            document.getElementById('addStokBarang').value = '';
-            await ambilDataDariSupabase();
+                // Kosongkan form input setelah berhasil
+                namaInput.value = '';
+                stokInput.value = '';
+                
+                // Ambil data terbaru dari cloud dan paksa render ulang komponen HTML
+                await ambilDataDariSupabase();
+
+            } catch (err) {
+                console.error("Gagal memproses manajemen barang:", err);
+                alert("Gagal menyimpan ke database cloud: " + err.message);
+            }
         }
 
         // FUNGSI AKSI ADMIN: HAPUS PILIHAN BARANG
