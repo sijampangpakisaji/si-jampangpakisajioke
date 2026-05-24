@@ -30,15 +30,30 @@
 
         header {
             text-align: center;
-            padding: 20px 0;
+            padding: 40px 20px;
             margin-bottom: 30px;
-            background: white;
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white;
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            background-size: cover;
+            background-position: center;
+            position: relative;
+        }
+
+        header.has-banner {
+            background-blend-mode: overlay;
+            background-color: rgba(0, 0, 0, 0.4);
         }
 
         header h1 {
-            color: var(--primary-color);
+            color: #ffffff;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            margin-bottom: 5px;
+        }
+        
+        header p {
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
         }
 
         .container {
@@ -200,16 +215,47 @@
             margin-left: 20px;
             margin-top: 5px;
         }
+
+        /* Admin Panel Styles */
+        .admin-panel {
+            background-color: #fff;
+            border: 2px dashed var(--warning-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        .admin-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+        @media (min-width: 768px) {
+            .admin-grid { grid-template-columns: 1fr 1fr; }
+        }
+        .admin-item-list {
+            max-height: 250px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .admin-item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
     </style>
 </head>
 <body>
 
-    <header>
+    <header id="mainHeader">
         <h1>SI-JAMPANG PAKIS AJI</h1>
         <p>Sistem Peminjaman Pendapa dan Barang di Kantor Kecamatan Pakis Aji</p>
     </header>
 
-    <!-- Modifikasi Bagian Login Info -->
     <div class="login-section">
         <button id="btnLogin" onclick="tampilkanFormLogin()" style="width: auto; display: inline-block;">Login Admin</button>
         <span id="loginNote" class="login-note">*Hanya untuk petugas Admin</span>
@@ -217,6 +263,38 @@
     </div>
 
     <div class="container">
+        
+        <!-- PANEL KONTROL ADMIN (Hanya Muncul Jika Logged In) -->
+        <div id="panelKontrolAdmin" class="full-width admin-panel" style="display: none;">
+            <h2 style="color: var(--warning-color); border-bottom-color: var(--warning-color);">⚙️ Panel Kendali Admin (Real-time Cloud)</h2>
+            
+            <div class="admin-grid">
+                <!-- Atur Gambar Atas -->
+                <div>
+                    <h3>1. Pengaturan Gambar Banner/Logo</h3>
+                    <div class="form-group" style="margin-top:10px;">
+                        <label for="inputUrlBanner">URL Link Gambar Banner:</label>
+                        <input type="text" id="inputUrlBanner" placeholder="https://link-gambar.com/banner.jpg">
+                        <button onclick="simpanBannerAdmin()" style="background-color: var(--warning-color);">Simpan & Terapkan Gambar</button>
+                    </div>
+                </div>
+
+                <!-- Kelola Inventaris Barang -->
+                <div>
+                    <h3>2. Manajemen Inventaris & Aktivasi Barang</h3>
+                    <div class="admin-item-list" id="listBarangAdmin">
+                        <!-- Diisi otomatis dari data database cloud -->
+                    </div>
+                    
+                    <h4>Tambah / Edit Barang Baru:</h4>
+                    <div style="display: flex; gap: 5px; margin-top:5px;">
+                        <input type="text" id="addNamaBarang" placeholder="Nama Barang" style="flex:2;">
+                        <input type="number" id="addStokBarang" placeholder="Stok" min="1" style="flex:1;">
+                        <button onclick="tambahAtauEditBarang()" style="width:auto; background-color: var(--success-color); padding:0 15px;">Simpan</button>
+                    </div>
+                </div>
+            </div>
+        </div>
         
         <div>
             <div class="card">
@@ -235,12 +313,8 @@
                     
                     <div class="form-group">
                         <label for="barang">Pilih Barang</label>
-                        <select id="barang" required>
-                            <option value="">-- Pilih Barang --</option>
-                            <option value="Pendapa">Pendapa (Tersedia: 1)</option>
-                            <option value="Tenda UMKM">Tenda UMKM (Tersedia: 5)</option>
-                            <option value="Kostum Jawa">Kostum Jawa (Tersedia: 10 Set)</option>
-                            <option value="Kursi">Kursi (Tersedia: 50)</option>
+                        <select id="barang" required onchange="validasiPilihanBarang()">
+                            <option value="">-- Memuat Data Barang Cloud... --</option>
                         </select>
                     </div>
 
@@ -262,7 +336,6 @@
                         <input type="text" id="keperluan" required placeholder="Contoh: Rapat RT / Acara Pernikahan">
                     </div>
 
-                    <!-- Input Baru: Upload Surat PDF -->
                     <div class="form-group">
                         <label for="suratPdf">Upload Surat Peminjaman (Format: PDF, Maks 2MB)</label>
                         <input type="file" id="suratPdf" accept="application/pdf" required>
@@ -306,30 +379,31 @@
     </div>
 
     <script>
-        // 1. Konfigurasi Kunci Akses Supabase Anda
         const SUPABASE_URL = "https://limsjzfxiyvfjlnvytgi.supabase.co"; 
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpbXNqemZ4aXl2ZmpsbnZ5dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NjAxNTYsImV4cCI6MjA5NTAzNjE1Nn0.AfQITh1nH-1cAo2O39uSPDLEKiK7XxUQLuCxP_GECnE";
 
-        // 2. Membuat koneksi ke Supabase
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
         let isAdminActive = false;
+        let stokBarang = {}; 
+        let dataPeminjaman = [];
+
+        const form = document.getElementById('formPinjam');
+        const tabel = document.getElementById('tabelPeminjaman');
+        const selectBarang = document.getElementById('barang');
+        const panelJadwal = document.getElementById('panelJadwal');
+
+        document.getElementById('tglPinjam').valueAsDate = new Date();
+        document.getElementById('tglKembali').valueAsDate = new Date();
 
         function tampilkanFormLogin() {
             const email = prompt("Masukkan Email Admin:");
             const password = prompt("Masukkan Password Admin:");
-            
-            if (email && password) {
-                loginAdmin(email, password);
-            }
+            if (email && password) loginAdmin(email, password);
         }
 
         async function loginAdmin(email, password) {
-            const { data, error } = await _supabase.auth.signInWithPassword({
-                email: email,
-                password: password,
-            });
-
+            const { error } = await _supabase.auth.signInWithPassword({ email, password });
             if (error) {
                 alert("Gagal Login: " + error.message);
             } else {
@@ -353,6 +427,7 @@
             const loginNote = document.getElementById('loginNote');
             const btnLogout = document.getElementById('btnLogout');
             const thAksi = document.getElementById('thAksi');
+            const panelAdmin = document.getElementById('panelKontrolAdmin');
 
             if (session) {
                 isAdminActive = true;
@@ -360,58 +435,149 @@
                 if(loginNote) loginNote.style.display = 'none';
                 if(btnLogout) btnLogout.style.display = 'inline-block';
                 if(thAksi) thAksi.style.display = 'table-cell';
+                if(panelAdmin) panelAdmin.style.display = 'block';
             } else {
                 isAdminActive = false;
                 if(btnLogin) btnLogin.style.display = 'inline-block';
                 if(loginNote) loginNote.style.display = 'inline-block';
                 if(btnLogout) btnLogout.style.display = 'none';
                 if(thAksi) thAksi.style.display = 'none';
+                if(panelAdmin) panelAdmin.style.display = 'none';
             }
         }
 
-        const stokBarang = {
-            "Pendapa": 1,
-            "Tenda UMKM": 5,
-            "Kostum Jawa": 10,
-            "Kursi": 50
-        };
-
-        let dataPeminjaman = [];
-
-        const form = document.getElementById('formPinjam');
-        const tabel = document.getElementById('tabelPeminjaman');
-        const selectBarang = document.getElementById('barang');
-        const panelJadwal = document.getElementById('panelJadwal');
-
-        document.getElementById('tglPinjam').valueAsDate = new Date();
-        document.getElementById('tglKembali').valueAsDate = new Date();
-
+        // AMBIL DATA DARI DUA TABEL (PENGATURAN + PEMINJAMAN)
         async function ambilDataDariSupabase() {
             try {
+                // 1. Ambil Pengaturan Aplikasi & Barang
+                let { data: configData, error: configError } = await _supabase
+                    .from('pengaturan_aplikasi')
+                    .select('*');
+
+                if (!configError && configData) {
+                    selectBarang.innerHTML = '<option value="">-- Pilih Barang --</option>';
+                    const listAdmin = document.getElementById('listBarangAdmin');
+                    if(listAdmin) listAdmin.innerHTML = '';
+
+                    configData.forEach(item => {
+                        if (item.key === 'url_banner') {
+                            // Atur Banner secara real-time
+                            if (item.nilai) {
+                                const headerEl = document.getElementById('mainHeader');
+                                headerEl.style.backgroundImage = `url('${item.nilai}')`;
+                                headerEl.classList.add('has-banner');
+                                document.getElementById('inputUrlBanner').value = item.nilai;
+                            }
+                        } else {
+                            // Ini adalah data barang
+                            let detail = JSON.parse(item.nilai);
+                            stokBarang[item.key] = detail.stok;
+
+                            // Masukkan ke select form
+                            let optionText = `${item.key} (${detail.aktif ? 'Tersedia: ' + detail.stok : 'Saat ini belum bisa dilayani'})`;
+                            let op = document.createElement('option');
+                            op.value = item.key;
+                            op.innerText = optionText;
+                            op.dataset.aktif = detail.aktif;
+                            selectBarang.appendChild(op);
+
+                            // Masukkan ke Panel Manajemen Admin
+                            if (listAdmin) {
+                                listAdmin.innerHTML += `
+                                    <div class="admin-item-row">
+                                        <div><b>${item.key}</b> (Stok: ${detail.stok}) - <span style="color:${detail.aktif ? 'green':'red'}">${detail.aktif ? 'Aktif':'Nonaktif'}</span></div>
+                                        <div>
+                                            <button onclick="ubahStatusBarangCloud('${item.key}', ${!detail.aktif})" class="btn-action" style="background-color: var(--primary-color); padding: 4px 8px;">${detail.aktif ? 'Matikan':'Aktifkan'}</button>
+                                            <button onclick="hapusBarangCloud('${item.key}')" class="btn-action" style="background-color: var(--danger-color); padding: 4px 8px;">Hapus</button>
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                        }
+                    });
+                }
+
+                // 2. Ambil data transaksi peminjaman
                 let { data, error } = await _supabase
                     .from('peminjaman')
                     .select('*')
                     .order('id', { ascending: false });
 
-                if (error) {
-                    console.error("Gagal mengambil data database:", error.message);
-                    tabel.innerHTML = `<tr><td colspan="${isAdminActive ? 8 : 7}" style="text-align:center; color:red;">Gagal memuat database: ${error.message}</td></tr>`;
-                    return;
-                }
+                if (error) throw error;
                 dataPeminjaman = data || [];
                 tampilkanData();
                 updateInfoJadwal();
             } catch (err) {
-                console.error("Error Sistem:", err);
-                tabel.innerHTML = `<tr><td colspan="${isAdminActive ? 8 : 7}" style="text-align:center; color:red;">Terjadi kesalahan sistem eksternal.</td></tr>`;
+                console.error("Error Muat Database:", err);
+                tabel.innerHTML = `<tr><td colspan="7" style="text-align:center; color:red;">Gagal sinkronisasi data cloud.</td></tr>`;
             }
         }
 
+        function validasiPilihanBarang() {
+            const selectedOpt = selectBarang.options[selectBarang.selectedIndex];
+            if(selectedOpt && selectedOpt.value !== "") {
+                if (selectedOpt.dataset.aktif === "false") {
+                    alert("Maaf, " + selectedOpt.value + ". Saat ini belum bisa dilayani.");
+                    selectBarang.value = "";
+                }
+            }
+            updateInfoJadwal();
+        }
+
+        // FUNGSI AKSI ADMIN: BANNER
+        async function simpanBannerAdmin() {
+            const url = document.getElementById('inputUrlBanner').value;
+            const { error } = await _supabase.from('pengaturan_aplikasi').update({ nilai: url }).eq('key', 'url_banner');
+            if (error) alert("Gagal mengubah banner: " + error.message);
+            else { alert("Banner terupdate di Cloud!"); window.location.reload(); }
+        }
+
+        // FUNGSI AKSI ADMIN: AKTIF / NONAKTIFKAN BARANG
+        async function ubahStatusBarangCloud(namaBarang, statusBaru) {
+            let detailBaru = { stok: stokBarang[namaBarang], aktif: statusBaru };
+            const { error } = await _supabase.from('pengaturan_aplikasi').update({ nilai: JSON.stringify(detailBaru) }).eq('key', namaBarang);
+            if (error) alert("Gagal mengubah status: " + error.message);
+            else await ambilDataDariSupabase();
+        }
+
+        // FUNGSI AKSI ADMIN: TAMBAH ATAU EDIT BARANG
+        async function tambahAtauEditBarang() {
+            const nama = document.getElementById('addNamaBarang').value.trim();
+            const stok = parseInt(document.getElementById('addStokBarang').value);
+            if(!nama || isNaN(stok)) { alert("Nama dan Jumlah stok wajib valid!"); return; }
+
+            let detail = { stok: stok, aktif: true };
+            
+            // Cek apakah barang sudah ada di lokal
+            if(stokBarang[nama] !== undefined) {
+                // Proses Edit/Update
+                const { error } = await _supabase.from('pengaturan_aplikasi').update({ nilai: JSON.stringify(detail) }).eq('key', nama);
+                if (error) alert("Gagal edit data: " + error.message);
+            } else {
+                // Proses Tambah Baru (Upsert)
+                const { error } = await _supabase.from('pengaturan_aplikasi').insert([{ key: nama, nilai: JSON.stringify(detail), deskripsi: 'Ditambahkan via Admin' }]);
+                if (error) alert("Gagal tambah data baru: " + error.message);
+            }
+
+            document.getElementById('addNamaBarang').value = '';
+            document.getElementById('addStokBarang').value = '';
+            await ambilDataDariSupabase();
+        }
+
+        // FUNGSI AKSI ADMIN: HAPUS PILIHAN BARANG
+        async function hapusBarangCloud(namaBarang) {
+            if(confirm(`Apakah Anda yakin ingin menghapus "${namaBarang}" dari daftar pilihan selamanya?`)) {
+                const { error } = await _supabase.from('pengaturan_aplikasi').delete().eq('key', namaBarang);
+                if(error) alert("Gagal menghapus: " + error.message);
+                else await ambilDataDariSupabase();
+            }
+        }
+
+        // FUNGSI SISTEM PRE-EXISTING (DIPERTAHANKAN)
         function dapatkanRentangTanggal(startStr, endStr) {
             let daftarTanggal = [];
             let tanggalArus = new Date(startStr);
             let tanggalAkhir = new Date(endStr);
-            
             while (tanggalArus <= tanggalAkhir) {
                 daftarTanggal.push(tanggalArus.toISOString().split('T')[0]);
                 tanggalArus.setDate(tanggalArus.getDate() + 1);
@@ -424,9 +590,7 @@
             dataPeminjaman.forEach(item => {
                 if (item.barang === namaBarang && item.status === "Disetujui") {
                     let rentang = dapatkanRentangTanggal(item.tglPinjam, item.tglKembali);
-                    if (rentang.includes(tanggalTarget)) {
-                        terpakai += parseInt(item.jumlah);
-                    }
+                    if (rentang.includes(tanggalTarget)) terpakai += parseInt(item.jumlah);
                 }
             });
             return terpakai;
@@ -438,14 +602,12 @@
                 panelJadwal.innerHTML = "Silahkan pilih barang untuk melihat tanggal yang sudah dibooking resmi.";
                 return;
             }
-
             let logJadwal = [];
             dataPeminjaman.forEach(item => {
                 if (item.barang === barangDipilih && item.status === "Disetujui") {
                     logJadwal.push(`<li><b>${item.tglPinjam}</b> s/d <b>${item.tglKembali}</b> (${item.jumlah} unit oleh ${item.nama})</li>`);
                 }
             });
-
             if (logJadwal.length === 0) {
                 panelJadwal.innerHTML = `Barang <b>${barangDipilih}</b> sepenuhnya tersedia (Belum ada booking resmi).`;
             } else {
@@ -453,16 +615,12 @@
             }
         }
 
-        selectBarang.addEventListener('change', updateInfoJadwal);
-
         function tampilkanData() {
             tabel.innerHTML = '';
-            
             if (dataPeminjaman.length === 0) {
                 tabel.innerHTML = `<tr><td colspan="${isAdminActive ? 8 : 7}" style="text-align:center;">Tidak ada riwayat arsip di cloud.</td></tr>`;
                 return;
             }
-
             dataPeminjaman.forEach((item) => {
                 let badgeClass = "badge-warning";
                 if (item.status === "Disetujui") badgeClass = "badge-info";
@@ -479,18 +637,12 @@
                     tombolAksi = `<button class="btn-action btn-kembali" onclick="responsAdmin(${item.id}, 'Dikembalikan')">Kembalikan</button>`;
                 }
 
-                // Kondisi tampilan surat download berdasarkan status login admin
                 let kolomSurat = "🔒 Login Admin";
                 if (isAdminActive) {
-                    if (item.url_surat) {
-                        kolomSurat = `<a href="${item.url_surat}" target="_blank" class="btn-action btn-download">⬇️ Unduh PDF</a>`;
-                    } else {
-                        kolomSurat = "Tidak ada file";
-                    }
+                    kolomSurat = item.url_surat ? `<a href="${item.url_surat}" target="_blank" class="btn-action btn-download">⬇️ Unduh PDF</a>` : "Tidak ada file";
                 }
 
                 const row = document.createElement('tr');
-                
                 let htmlContent = `
                     <td>
                         <b>${item.nama}</b>
@@ -506,11 +658,7 @@
                     <td><span class="badge ${badgeClass}">${item.status}</span></td>
                     <td>${kolomSurat}</td>
                 `;
-
-                if (isAdminActive) {
-                    htmlContent += `<td>${tombolAksi}</td>`;
-                }
-
+                if (isAdminActive) htmlContent += `<td>${tombolAksi}</td>`;
                 row.innerHTML = htmlContent;
                 tabel.appendChild(row);
             });
@@ -522,16 +670,8 @@
 
             const fileInput = document.getElementById('suratPdf');
             const file = fileInput.files[0];
-            
-            if (!file) {
-                alert("Wajib mengunggah berkas surat PDF terlebih dahulu!");
-                document.getElementById('btnSubmit').innerText = "Ajukan Peminjaman";
-                return;
-            }
-
-            // Validasi Ukuran File (Maksimal 2 MB)
-            if (file.size > 2 * 1024 * 1024) {
-                alert("Gagal: Ukuran file PDF terlalu besar! Maksimal adalah 2MB.");
+            if (!file || file.size > 2 * 1024 * 1024) {
+                alert("Wajib PDF dan Maksimal 2MB!");
                 document.getElementById('btnSubmit').innerText = "Ajukan Peminjaman";
                 return;
             }
@@ -546,58 +686,27 @@
             const keperluan = document.getElementById('keperluan').value;
 
             if (new Date(tglPinjam) > new Date(tglKembali)) {
-                alert("Kesalahan: Tanggal kembali tidak boleh mendahului tanggal pinjam!");
+                alert("Tanggal salah!");
                 document.getElementById('btnSubmit').innerText = "Ajukan Peminjaman";
                 return;
             }
 
             try {
-                // Proses unggah berkas PDF ke Supabase Storage (Bucket harus bernama "surat-peminjaman")
                 const namaFileUnik = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+                const { error: uploadError } = await _supabase.storage.from('surat-peminjaman').upload(namaFileUnik, file);
+                if (uploadError) throw new Error("Gagal upload PDF: " + uploadError.message);
+
+                const { data: urlData } = _supabase.storage.from('surat-peminjaman').getPublicUrl(namaFileUnik);
                 
-                const { data: uploadData, error: uploadError } = await _supabase
-                    .storage
-                    .from('surat-peminjaman')
-                    .upload(namaFileUnik, file);
+                const { error: insertError } = await _supabase.from('peminjaman').insert([{ 
+                    nama, alamat, noWa, barang, jumlah: jumlahMohon, tglPinjam, tglKembali, keperluan, status: "Diajukan", url_surat: urlData.publicUrl
+                }]);
 
-                if (uploadError) {
-                    throw new Error("Gagal mengunggah file PDF: " + uploadError.message);
-                }
+                if (insertError) throw new Error("Gagal simpan data: " + insertError.message);
 
-                // Dapatkan link publik untuk download file PDF tersebut
-                const { data: urlData } = _supabase
-                    .storage
-                    .from('surat-peminjaman')
-                    .getPublicUrl(namaFileUnik);
-
-                const linkPublicPdf = urlData.publicUrl;
-
-                // Masukkan semua data formulir beserta link PDF ke tabel database
-                const { error: insertError } = await _supabase
-                    .from('peminjaman')
-                    .insert([{ 
-                        nama: nama, 
-                        alamat: alamat, 
-                        noWa: noWa, 
-                        barang: barang, 
-                        jumlah: jumlahMohon, 
-                        tglPinjam: tglPinjam, 
-                        tglKembali: tglKembali,
-                        keperluan: keperluan,
-                        status: "Diajukan",
-                        url_surat: linkPublicPdf // Pastikan kolom ini sudah dibuat di tabel Supabase
-                    }]);
-
-                if (insertError) {
-                    throw new Error("Gagal menyimpan data pengajuan: " + insertError.message);
-                }
-
-                alert(`Permohonan peminjaman ${barang} beserta surat berhasil dikirim!`);
+                alert("Permohonan sukses terkirim!");
                 form.reset();
-                document.getElementById('tglPinjam').valueAsDate = new Date();
-                document.getElementById('tglKembali').valueAsDate = new Date();
                 await ambilDataDariSupabase(); 
-
             } catch (err) {
                 alert(err.message);
             } finally {
@@ -608,36 +717,25 @@
         async function responsAdmin(id, keputusan) {
             const index = dataPeminjaman.findIndex(item => item.id === id);
             if (index === -1) return;
-
             const target = dataPeminjaman[index];
 
             if (keputusan === "Disetujui") {
                 let rentangTanggalMohon = dapatkanRentangTanggal(target.tglPinjam, target.tglKembali);
-                let stokMaksimal = stokBarang[target.barang];
+                let stokMaksimal = stokBarang[target.barang] || 0;
 
                 for (let i = 0; i < rentangTanggalMohon.length; i++) {
                     let tglCek = rentangTanggalMohon[i];
                     let terpakai = hitungStokTerpakai(target.barang, tglCek);
-                    let sisaStok = stokMaksimal - terpakai;
-
-                    if (target.jumlah > sisaStok) {
-                        alert(`Gagal Menyetujui! Stok tidak cukup pada tanggal ${tglCek}. Sisa stok: ${sisaStok} unit.`);
+                    if (target.jumlah > (stokMaksimal - terpakai)) {
+                        alert(`Stok tidak cukup pada tanggal ${tglCek}!`);
                         return;
                     }
                 }
             }
 
-            const { error } = await _supabase
-                .from('peminjaman')
-                .update({ status: keputusan })
-                .eq('id', id);
-
-            if (error) {
-                alert("Gagal merubah status arsip: " + error.message);
-            } else {
-                alert(`Status arsip digital diubah: ${keputusan}`);
-                window.location.reload();
-            }
+            const { error } = await _supabase.from('peminjaman').update({ status: keputusan }).eq('id', id);
+            if (error) alert("Gagal update status: " + error.message);
+            else { alert("Status berhasil diubah!"); window.location.reload(); }
         }
 
         window.onload = async function() {
